@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "SAP_CONNECTION_STRING": "SAP_CONNECTION_STRING_PLACEHOLDER",
+    "KEY_VAULT_URI": "https://your-key-vault-name.vault.azure.net/"
+  }
+}

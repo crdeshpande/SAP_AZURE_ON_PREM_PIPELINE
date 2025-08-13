@@ -1,0 +1,81 @@
+{
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "azureSqlConnectionString": {
+            "type": "string",
+            "defaultValue": "@appsetting('sql-connection-string')"
+        },
+        "sapBridgeFunctionUrl": {
+            "type": "string",
+            "defaultValue": "@appsetting('sap-bridge-function-url')"
+        }
+    },
+    "triggers": {
+        "manual": {
+            "type": "Request",
+            "kind": "Http",
+            "inputs": {
+                "schema": {
+                    "properties": {
+                        "amount": { "type": "number" },
+                        "customer": { "type": "string" },
+                        "partNumber": { "type": "string" }
+                    },
+                    "type": "object"
+                }
+            }
+        }
+    },
+    "actions": {
+        "Call_SAP_Bridge_Function": {
+            "runAfter": {},
+            "type": "Http",
+            "inputs": {
+                "method": "POST",
+                "uri": "[concat(parameters('sapBridgeFunctionUrl'), '/api/bapi/BAPI_SALESORDER_CREATE')]",
+                "headers": { "Content-Type": "application/json" },
+                "body": {
+                    "Customer": "@triggerBody()?['customer']",
+                    "Amount": "@triggerBody()?['amount']"
+                },
+                "authentication": {
+                    "type": "FunctionKey"
+                }
+            }
+        },
+        "Get_Product_Details_from_SQL": {
+            "runAfter": {
+                "Call_SAP_Bridge_Function": ["Succeeded"]
+            },
+            "type": "ApiConnection",
+            "inputs": {
+                "host": {
+                    "connection": {
+                        "name": "@parameters('$connections')['sql']['connectionId']"
+                    }
+                },
+                "method": "get",
+                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('default'))},@{encodeURIComponent(encodeURIComponent('default'))}/tables/@{encodeURIComponent(encodeURIComponent('Products'))}/items",
+                "queries": {
+                    "$filter": "PartNumber eq '@{triggerBody()?['partNumber']}'"
+                }
+            }
+        },
+        "Response": {
+            "runAfter": {
+                "Get_Product_Details_from_SQL": ["Succeeded"]
+            },
+            "type": "Response",
+            "kind": "Http",
+            "inputs": {
+                "statusCode": 200,
+                "body": {
+                    "sapResponse": "@body('Call_SAP_Bridge_Function')",
+                    "sqlData": "@body('Get_Product_Details_from_SQL')"
+                }
+            }
+        }
+    },
+    "outputs": {}
+}
